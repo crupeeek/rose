@@ -26,6 +26,7 @@
    Вдохновлено ASCII-артом @jin_22ee, но код и геометрия написаны с нуля. */
 
 const TXT = "спасибо";
+const PH = TXT + " ";   // «спасибо » с пробелом, 8 символов
 const FONT = '"JetBrains Mono","DejaVu Sans Mono",Consolas,ui-monospace,monospace';
 const BG = "#05060a";
 
@@ -47,23 +48,31 @@ function resize() {
 }
 addEventListener("resize", resize); resize();
 
-/* ---------- фон: медленно плывущие буквы ---------- */
-const P = Array.from({ length: 80 }, () => ({
-  x: Math.random(), y: Math.random(), v: .008 + Math.random() * .03,
-  s: .6 + Math.random() * .9, c: TXT[Math.random() * 7 | 0],
-  hue: Math.random() < .5 ? 340 : 210, p: Math.random() * 6.28
+/* ---------- фон: звёзды ---------- */
+const P = Array.from({ length: 140 }, () => ({
+  x: Math.random(), y: Math.random(), r: .5 + Math.random() * .9,
+  v: .004 + Math.random() * .012, p: Math.random() * 6.28, sp: .6 + Math.random() * 1.8,
+  hue: [0, 210, 340][Math.random() * 3 | 0], big: Math.random() < .08
 }));
 function drawParticles(t) {
-  ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  ctx.save();
   for (const p of P) {
     const y = (((p.y - t * p.v) % 1) + 1) % 1 * h;
-    const x = p.x * w + Math.sin(t * .3 + p.p) * 10;
-    ctx.font = `${Math.max(7, 9 * p.s * Math.max(U, .8))}px ${FONT}`;
-    ctx.fillStyle = `hsla(${p.hue},60%,80%,${.12 + .12 * Math.sin(t * 1.5 + p.p)})`;
-    ctx.fillText(p.c, x, y);
+    const x = p.x * w + Math.sin(t * .2 + p.p) * 6;
+    const a = .25 + .65 * (.5 + .5 * Math.sin(t * p.sp + p.p));
+    const col = p.hue === 0 ? `rgba(255,255,255,${a})` : `hsla(${p.hue},70%,80%,${a})`;
+    const r = p.r * Math.max(.8, U);
+    ctx.fillStyle = col; ctx.strokeStyle = col; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.arc(x, y, r, 0, 6.2832); ctx.fill();
+    if (p.big) {
+      ctx.beginPath();
+      ctx.moveTo(x - r * 3, y); ctx.lineTo(x + r * 3, y);
+      ctx.moveTo(x, y - r * 3); ctx.lineTo(x, y + r * 3);
+      ctx.stroke();
+    }
   }
+  ctx.restore();
 }
-
 /* ---------- один символ с поворотом и тёмным ободком ---------- */
 function glyph(ch, x, y, a, fill) {
   ctx.save(); ctx.translate(x, y); ctx.rotate(a);
@@ -84,10 +93,10 @@ function drawStem(g, sway) {
     const [x, y] = stemPt(p, sway), [x2, y2] = stemPt(p + .004, sway);
     const a = Math.atan2(y2 - y, x2 - x);
     const nx = -Math.sin(a), ny = Math.cos(a);
-    for (let c = -1; c <= 1; c++) {
-      const o = c * fs * .55 * lerp(1.2, .8, p);
-      glyph(TXT[(k + c + 3) % 7], x + nx * o, y + ny * o, a,
-        `hsl(${132 + c * 5},70%,${33 + p * 8 + (c === 0 ? 9 : 0)}%)`);
+    for (let c = 0; c < 2; c++) {
+      const o = (c - .5) * fs * .62 * lerp(1.2, .85, p);
+      glyph(PH[(k + c * 4) % 8], x + nx * o, y + ny * o, a,
+        `hsl(${132 + c * 6},70%,${36 + p * 8 + c * 6}%)`);
     }
   }
 }
@@ -107,7 +116,7 @@ function drawLeaf(L, t, g, sway) {
   const adv = fs * .62, rowH = fs * .95;
   const m = Math.max(2, Math.floor(len / adv));
   ctx.font = `700 ${fs * .95}px ${FONT}`;
-  let ang = dir; if (Math.cos(ang) < 0) ang += Math.PI;
+  const flip = Math.cos(dir) < 0; let ang = dir; if (flip) ang += Math.PI;
   for (let k = 1; k <= m; k++) {
     const u = k / m;
     const wv = wmax * Math.pow(Math.sin(Math.PI * u), .85);
@@ -115,7 +124,7 @@ function drawLeaf(L, t, g, sway) {
     const mx = bx + ax * u * len, my = by + ay * u * len + u * u * len * .25;
     for (let v = -rows; v <= rows; v++) {
       const mid = 1 - Math.abs(v) / (rows + 1);
-      glyph(TXT[(k + v + 7) % 7], mx + px * v * rowH, my + py * v * rowH, ang,
+      glyph(PH[(((flip ? -k : k) + v * 3) % 8 + 8) % 8], mx + px * v * rowH, my + py * v * rowH, ang,
         `hsl(${138 - u * 10},68%,${27 + mid * 20 + u * 4}%)`);
     }
   }
@@ -124,36 +133,38 @@ function drawLeaf(L, t, g, sway) {
 /* ---------- цветок: кольца из слова «спасибо» ---------- */
 function drawFlower(t, scale, b) {
   const Rm = 165 * U * scale;
-  const N = Math.max(5, Math.floor(Rm / (fs * .92)));
+  const N = Math.max(6, Math.floor(Rm / (fs * .85)));
   ctx.textAlign = "center"; ctx.textBaseline = "middle";
-  for (let pass = 0; pass < 2; pass++) {            // 0 — задняя половина, 1 — передняя
+  for (let pass = 0; pass < 2; pass++) {
     for (let q = 0; q < N; q++) {
-      const i = pass === 0 ? N - 1 - q : q;         // задние: снаружи внутрь; передние: изнутри наружу
+      const i = pass === 0 ? N - 1 - q : q;
       const s = (i + 1) / N, u = 1 - s;
-      const bs = sm((b - u * .55) / .45);           // наружные лепестки раскрываются первыми
+      const bs = sm((b - u * .5) / .5);
       const rb = Rm * .42 * Math.sqrt(Math.max(0, 1 - u * u * .98));
-      const ro = Rm * (.10 + .90 * Math.pow(s, .9));
+      const ro = Rm * (.30 * Math.sqrt(Math.max(0, 1 - u * u * .95)) + .70 * Math.pow(s, 1.3));
       const r = lerp(rb, ro, bs) + .001;
-      const ht = lerp(Rm * .95 * u, Rm * .38 * u, bs);
-      const tilt = lerp(.16, .52, bs);
+      const ht = lerp(Rm * .95 * u, Rm * .85 * Math.pow(u, .85), bs);
+      const tilt = lerp(-.2, .46, bs);
       const yc = -ht - Rm * .06;
-      const fsi = fs * (.8 + .3 * s);
+      const fsi = fs * (.7 + .25 * s);
       ctx.font = `700 ${fsi}px ${FONT}`;
-      const n = Math.max(5, Math.round(2 * Math.PI * r / (fsi * .6)));
+      const n = Math.max(8, Math.floor(2 * Math.PI * r / (fsi * .62 * 8)) * 8);
       const ph = i * .7 + Math.sin(t * .4 + i) * .03;
+      const pn = i % 2 ? 5 : 7;
       for (let j = 0; j < n; j++) {
         const th = 2 * Math.PI * j / n + ph;
         const sn = Math.sin(th), cs = Math.cos(th);
         if ((pass === 0) !== (sn < 0)) continue;
-        const sc = Math.cos(5 * th + i * .6);       // «фестоны» лепестков
-        const rr = r * (1 + .1 * bs * sc);
+        const sc = Math.cos(pn * th + i * .6);
+        const rr = r * (1 + .13 * bs * sc);
         const x = rr * cs, y = yc + rr * sn * tilt;
         let a = Math.atan2(r * cs * tilt, -r * sn);
         if (Math.cos(a) < 0) a += Math.PI;
         const front = (sn + 1) / 2;
         let L = 22 + 26 * s + 10 * front + 3 * Math.sin(t * 2 + i + j * .4);
         if (bs > .3 && sc > .7) L += 7;
-        glyph(TXT[(j + i * 3) % 7], x, y, a, `hsl(${352 + s * 6},88%,${clamp(L, 10, 72)}%)`);
+        const idx = ((((sn >= 0 ? -j : j) + i * 3) % 8) + 8) % 8;
+        glyph(PH[idx], x, y, a, `hsl(${352 + s * 6},88%,${clamp(L, 10, 72)}%)`);
       }
     }
   }
