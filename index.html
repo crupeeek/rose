@@ -15,18 +15,20 @@
     letter-spacing: .12em; color: rgba(255,255,255,.28); pointer-events: none;
     padding-bottom: env(safe-area-inset-bottom, 0px);
   }
+
 </style>
+<script>window.va = window.va || function () { (window.vaq = window.vaq || []).push(arguments); };</script>
+<script defer src="/_vercel/insights/script.js"></script>
 </head>
 <body>
 <canvas id="c" aria-label="" role="img"></canvas>
 <div id="hint">нажми, чтобы вырастить заново</div>
 
 <script>
-/* Идея: роза целиком состоит из слова «спасибо».
-   Вдохновлено ASCII-артом @jin_22ee, но код и геометрия написаны с нуля. */
+
 
 const TXT = "спасибо";
-const PH = TXT + " ";   // «спасибо » с пробелом, 8 символов
+const PH = TXT + " ";
 const FONT = '"JetBrains Mono","DejaVu Sans Mono",Consolas,ui-monospace,monospace';
 const BG = "#05060a";
 
